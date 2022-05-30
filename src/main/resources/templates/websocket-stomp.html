@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>websocket STOMP</title>
+</head>
+<body>
+websocket STOMP test<br>
+<div>
+    <div>
+        <button id = "connect" onclick="connect()">connect</button>
+        <button id = "disconnect" disabled="disabled" onclick="disconnect()">disconnect</button>
+    </div>
+    <div id = "conversationDiv">
+        <p>
+            <label>Content of message</label>
+        </p>
+        <p>
+            <textarea id="message" rows = "5"></textarea>
+        </p>
+        <p>
+            <button id = "sendMsg" onclick="sendMessage()">send</button>
+        </p>
+        <p id = "response">
+
+        </p>
+    </div>
+
+    <a href="#" target="/ws-stomp">
+        Redirect to the message receiving page</a>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script type="text/javascript">
+    var stompClient = null;
+    // set up connection
+    function setConnected(connected) {
+        $("#connect").attr({"disabled": connected});
+        $("#disconnect").attr({"disabled": !connected});
+        if (connected) {
+            $("#conversationDiv").show();
+        } else {
+            $("#conversationDiv").hide();
+        }
+        $("#response").html("")
+    }
+
+    function connect() {
+        // Define the endpoint for requesting the server
+        var socket = new SockJS('/socket');
+        // stomp client
+        stompClient = Stomp.over(socket);
+        // Connect to server endpoint
+        stompClient.connect({}, function (frame) {
+          // Callback after connection is established
+            setConnected(true);
+        })
+    }
+    // disconnect the socket
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+    }
+    // Send a message to the /request/send server
+    function sendMessage() {
+        var message = $("#message").val();
+        stompClient.send("/request/send", {}, message);
+    }
+    connect();
+</script>
+
+</body>
+</html>

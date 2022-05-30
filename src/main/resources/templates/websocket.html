@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>websocket test</title>
+</head>
+<body>
+websocket test<br>
+<input id = "message" type="text">
+<button onclick="sendMessage()">Send message</button>
+<input id = "audio" type="file" placeholder="upload audio">
+<button onclick="sendAudio()">Send audio</button>
+<button onclick="disconnectWebSocket()">Disconnect from websocket</button>
+<button onclick="logout()">Log out</button>
+
+<div id="context"></div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script type="application/javascript">
+    var websocket = null;
+
+    if ('WebSocket' in window){
+        websocket = new WebSocket("ws://localhost:8081/ws");
+    }else{
+        alert('WebSocket is not supported');
+    }
+
+    websocket.onerror = function(){
+        appendMessage("error!");
+    }
+
+    websocket.onopen = function(event){
+        appendMessage("open!");
+    }
+
+    websocket.onmessage = function(event){
+        if(event.data instanceof Blob){
+            event.data.type = "audio/mp3";
+            var urlCreator = window.URL || window.webkitURL;
+            var imageUrl = urlCreator.createObjectURL(event.data);
+            appendAudio(imageUrl);
+        }else{
+            appendMessage(event.data);
+        }
+    }
+
+
+    websocket.onclose = function(){
+        appendMessage ("close!");
+    }
+
+    window.onbeforeunload = function () {
+        websocket.close();
+    }
+
+    function appendMessage(message){
+        var context = $("#context").html() + "<br/>" + message;
+        $("#context").html(context);
+    }
+
+    function disconnectWebSocket(){
+         websocket.close();
+         logout;
+    }
+
+    function sendMessage(){
+        var message = $("#message").val();
+        websocket.send(message);
+    }
+
+    function sendBinary(message){
+       websocket.send(message);
+    }
+
+    function sendAudio(){
+       var reader = new FileReader();
+       reader.onload = function(){
+            var rawData = reader.result;
+            sendBinary(rawData);
+       };
+       reader.readAsArrayBuffer($('#audio')[0].files[0]);
+    }
+
+
+
+    function appendAudio(message){
+        var context = $("#context").html() + "<br/>" + "<audio controls class=\"audio-player\"><source src=" +  message + " type=\"audio/mp3\"></audio>";
+<!--         var context = $("#context").html() + "<br/>" + "<img src=" +  message + "></img>";-->
+
+        $("#context").html(context);
+    }
+
+
+    function logout(){
+        disconnectWebSocket();
+        $.ajax({
+            url: "/logout",
+            type: "POST",
+            success: function (result){
+                console.log ("Successfully log out")
+                console.log(result)
+            }
+        })
+    }
+
+
+
+
+
+
+</script>
+
+</body>
+</html>

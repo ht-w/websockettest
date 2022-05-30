@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>send-user</title>
+</head>
+<body>
+websocket STOMP test send-user<br>
+<div>
+    <div>
+        <button id = "connect" onclick="connect()">连接</button>
+        <button id = "disconnect" disabled="disabled" onclick="disconnect()">断开连接</button>
+    </div>
+    <div id = "conversationDiv">
+        <p>
+            <label>Content of message</label>
+        </p>
+        <p>
+            Send to：<input id="user">
+        </p>
+        <p>
+            <textarea id="message" rows = "5"></textarea>
+        </p>
+        <p>
+            <button id = "sendMsg" onclick="sendMessage()">Send</button>
+        </p>
+        <p id = "response">
+
+        </p>
+    </div>
+
+    <a href="#" target="/websocket-receive">Redirect to message receiving page</a>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script type="text/javascript">
+
+
+    var stompClient = null;
+
+    function setConnected(connected) {
+        $("#connect").attr({"disabled": connected});
+        $("#disconnect").attr({"disabled": !connected});
+        if (connected) {
+            $("#conversationDiv").show();
+        } else {
+            $("#conversationDiv").hide();
+        }
+        $("#response").html("")
+    }
+
+    function connect() {
+
+        var socket = new SockJS('/wsuser');
+
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+
+            setConnected(true);
+        })
+    }
+
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+    }
+
+    function sendMessage() {
+        var message = $("#message").val();
+        var user = $("#user").val();
+        var messageSend = user + ": " + message
+        stompClient.send("/request/sendToUser", {}, messageSend);
+    }
+    connect();
+</script>
+
+</body>
+</html>
