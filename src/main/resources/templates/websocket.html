@@ -20,6 +20,10 @@ websocket test<br>
 <script type="application/javascript">
     var websocket = null;
 
+    var obj = {type:null , msgContent:null}
+
+    var AudioObj = {type:'AUDIO' , }
+
     if ('WebSocket' in window){
         websocket = new WebSocket("ws://localhost:8081/ws");
     }else{
@@ -37,11 +41,13 @@ websocket test<br>
     websocket.onmessage = function(event){
         if(event.data instanceof Blob){
             event.data.type = "audio/mp3";
+            console.log(event.data);
             var urlCreator = window.URL || window.webkitURL;
             var imageUrl = urlCreator.createObjectURL(event.data);
             appendAudio(imageUrl);
         }else{
-            appendMessage(event.data);
+            var json = JSON.parse(event.data);
+            appendMessage(json.msgContent);
         }
     }
 
@@ -66,20 +72,23 @@ websocket test<br>
 
     function sendMessage(){
         var message = $("#message").val();
-        websocket.send(message);
+        obj.type = 'TEXT';
+        obj.msgContent = message;
+        var json = JSON.stringify(obj);
+        websocket.send(json);
     }
 
-    function sendBinary(message){
-       websocket.send(message);
-    }
 
     function sendAudio(){
        var reader = new FileReader();
        reader.onload = function(){
             var rawData = reader.result;
-            sendBinary(rawData);
+            console.log(rawData);
+            websocket.send(rawData);
        };
        reader.readAsArrayBuffer($('#audio')[0].files[0]);
+       $('#audio').val("");
+
     }
 
 

@@ -1,5 +1,6 @@
 package io.hongting.websockettest.controller;
 
+import io.hongting.websockettest.model.StompMessage;
 import io.hongting.websockettest.service.WebSocketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,11 +34,11 @@ public class WebSocketController {
     }
 
     @MessageMapping("/sendToUser")
-    public void sendToUser(Principal principal, String body) {
+    public void sendToUser(Principal principal, StompMessage stompMessage) {
         String srcUser = principal.getName();
-        String[] args = body.split(": ");
-        String desUser = args[0];
-        String message = String.format("【%s】sent you a message：%s", webSocketService.getUser().get(srcUser), args[1]);
+        String content = stompMessage.getMsgContent();
+        String desUser = stompMessage.getUsername();
+        String message = String.format("【%s】sent you a message：%s", webSocketService.getUser().get(srcUser), content);
 
         // send to user and listening address
         simpMessagingTemplate.convertAndSendToUser(desUser, "/queue/customer", message);

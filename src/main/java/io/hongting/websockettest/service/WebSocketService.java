@@ -1,5 +1,11 @@
 package io.hongting.websockettest.service;
 
+
+import io.hongting.websockettest.decoder.MessageDecoder;
+
+import io.hongting.websockettest.encoder.MessageEncoder;
+
+import io.hongting.websockettest.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,6 +18,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -23,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 
 
-@ServerEndpoint("/ws")
+@ServerEndpoint(value = "/ws", decoders = {MessageDecoder.class}, encoders = {MessageEncoder.class})
 @Service
 public class WebSocketService {
 
@@ -67,10 +74,14 @@ public class WebSocketService {
         webSocketServices.add(this);
         incrementOnlineUser();
         logger.info("New websocket connection, current number of online user: {}", onlineUser.get());
+        Message message = new Message();
+        message.setType("JOIN");
+        message.setMsgContent(String.format("%s join!", name));
         webSocketServices.parallelStream().forEach(ws -> {
             try {
-                sendMessage(ws.getSession(), String.format("%s join!", name));
-            } catch (IOException e) {
+
+                sendMessage(ws.getSession(), message);
+            } catch (IOException | EncodeException e) {
                 logger.error("Message exception:", e);
             }
         });
@@ -79,14 +90,15 @@ public class WebSocketService {
 
     //This method is called when the client sends a message
     @OnMessage
-    public void onMessage (String message, Session session){
+    public void onMessage (Message message, Session session){
         logger.info("Message from the client side: {}", message);
         String name = user.get(session.getUserPrincipal().getName());
         logger.info ("{} sent a message : {}", name, message);
+        message.setMsgContent(String.format("%s:%s", name, message.getMsgContent()));
         webSocketServices.parallelStream().forEach(ws -> {
             try {
-                ws.sendMessage(ws.getSession(), String.format("%s:%s", name, message));
-            } catch (IOException e) {
+                ws.sendMessage(ws.getSession(), message );
+            } catch (IOException | EncodeException e) {
                 logger.error("Message exception:", e);
             }
         });
@@ -96,20 +108,19 @@ public class WebSocketService {
 
     @OnMessage
     public void onMessage (ByteBuffer byteBuffer, boolean complete, Session session ){
-        String name = user.get(session.getUserPrincipal().getName());
         try {
             buffer.write(byteBuffer.array());
             if (complete){
-                FileOutputStream fos = null;
-                try{
-                    fos = new FileOutputStream( "D:\\audiotest\\2.mp3");
-                    fos.write(buffer.toByteArray());
-                }finally{
-                    if (fos!=null){
-                        fos.flush();
-                        fos.close();
-                    }
-                }
+////                FileOutputStream fos = null;
+////                try{
+////                    fos = new FileOutputStream( "D:\\audiotest\\2.mp3");
+////                    fos.write(buffer.toByteArray());
+////                }finally{
+////                    if (fos!=null){
+////                        fos.flush();
+////                        fos.close();
+////                    }
+//                }
 
                 webSocketServices.parallelStream().forEach(ws -> {
                     final ByteBuffer sendData = ByteBuffer.allocate(buffer.toByteArray().length);
@@ -121,6 +132,8 @@ public class WebSocketService {
                         logger.error("Audio message exception:", e);
                     }
                 });
+
+                buffer.reset();
 
             }
 
@@ -159,10 +172,14 @@ public class WebSocketService {
         webSocketServices.remove(this);
         decrementOnlineUser();
         logger.info("current number of online user: {}", onlineUser.get());
+        Message message = new Message();
+        message.setType("DISCONNECT");
+        message.setMsgContent("disconnect from the websocket connection");
         webSocketServices.parallelStream().forEach(ws -> {
             try {
-                sendMessage(ws.getSession(), String.format("%s left!", name));
-            } catch (IOException e) {
+                message.setMsgContent(String.format("%s disconnect from the websocket connection", name));
+                sendMessage(ws.getSession(), message);
+            } catch (IOException | EncodeException e) {
                 logger.error("Message exception:", e);
             }
         });
@@ -192,8 +209,8 @@ public class WebSocketService {
         onlineUser.decrementAndGet();
     }
 
-    private void sendMessage(Session session, String message) throws IOException {
-        session.getBasicRemote().sendText(message);
+    private void sendMessage(Session session, Message message) throws IOException, EncodeException {
+        session.getBasicRemote().sendObject(message);
     }
 
     private void sendAudio(Session session, ByteBuffer byteBuffer) throws IOException {
